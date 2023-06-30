@@ -9,6 +9,7 @@ const port = 3000; // Set your desired port number
 // Enable CORS middleware
 app.use(cors());
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
 
 // Create a new instance of the Pool
 const db = new Pool({
@@ -37,6 +38,27 @@ const db = new Pool({
 //     }
 //   );
 // });
+
+// const recreateSalesTableQuery = `
+//   DROP TABLE IF EXISTS sales;
+  
+//   CREATE TABLE sales (
+//     saleID SERIAL PRIMARY KEY,
+//     customerID TEXT NOT NULL,
+//     date DATE DEFAULT CURRENT_DATE,
+//     isClosed BOOLEAN DEFAULT FALSE,
+//     FOREIGN KEY (customerID) REFERENCES customers (phonenumber)
+//   );
+// `;
+
+// // Execute the query using db.query method
+// db.query(recreateSalesTableQuery)
+//   .then(() => {
+//     console.log('Sales table dropped and re-created successfully!');
+//   })
+//   .catch((error) => {
+//     console.error('Error dropping and re-creating sales table:', error);
+//   });
 
 
 app.post('/api/form', (req, res) => {
@@ -111,36 +133,59 @@ app.get('/api/customers', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
+// Define a route to fetch customer data based on phone number
+app.get("/api/customerData", (req, res) => {
+  const customerPhoneNumber = req.query.phoneNumber;
+  console.log("reached");
 
-// Define a route to fetch patient data based on name
-app.get("/api/patientData", (req, res) => {
-  const patientName = req.query.name;
-
-  // Query the database based on the patient name
   db.query(
-    "SELECT * FROM customers WHERE phonenumber = $1",
-    [patientName],
+    "SELECT customers.name, customers.phonenumber, customers.email, COALESCE(MAX(sales.saleID), 0) AS currentSaleID FROM customers LEFT JOIN sales ON customers.phonenumber = sales.customerID WHERE customers.phonenumber = $1 GROUP BY customers.name, customers.phonenumber, customers.email",
+    [customerPhoneNumber],
     (err, result) => {
       if (err) {
         console.error(err);
         res.status(500).json({ error: "Internal server error" });
       } else if (result.rows.length > 0) {
         const row = result.rows[0];
-        console.log(result.rows[0])
-        // Return the patient data if found
+        const currentSaleID = row.currentSaleID;
+        console.log(currentSaleID);
+
         res.json({
           name: row.name,
-          phonenumber: row.phonenumber,
+          phoneNumber: row.phonenumber,
           email: row.email,
-        
+          currentSaleID: currentSaleID,
         });
       } else {
-        // Return an error if the patient is not found
-        res.status(404).json({ error: "Patient not found" });
+        // Return an error if the customer is not found
+        res.status(404).json({ error: "Customer not found" });
       }
     }
   );
 });
+
+
+
+
+
+app.post("/api/startSale", (req, res) => {
+  const { phoneNumber } = req.body;
+
+  const insertQuery = `
+    INSERT INTO sales (customerID)
+    VALUES ($1)
+  `;
+
+  db.query(insertQuery, [phoneNumber], (error, results) => {
+    if (error) {
+      console.error("Failed to insert into sales table:", error);
+      res.sendStatus(500);
+    } else {
+      console.log("Successfully inserted into sales table");
+      res.sendStatus(200);
+    }
+  });
+})
 
 // Start the server
 app.listen(port, () => {
