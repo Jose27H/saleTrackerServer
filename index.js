@@ -60,6 +60,43 @@ const db = new Pool({
 //     console.error('Error dropping and re-creating sales table:', error);
 //   });
 
+// // Drop the items_sold table
+// db.query('DROP TABLE IF EXISTS items_sold', (err, result) => {
+//   if (err) {
+//     console.error('Error dropping items_sold table:', err);
+//   } else {
+//     console.log('items_sold table dropped successfully');
+//   }
+// });
+
+// // Create the items_sold table
+// db.query(
+//   `CREATE TABLE items_sold (
+//     Item_name VARCHAR(255) NOT NULL,
+//     saleid INTEGER REFERENCES sales (saleid),
+//     reorder_date DATE ,
+//     price DECIMAL(10, 2),
+//     hasCalled BOOLEAN DEFAULT FALSE
+//   )`,
+//   (err, result) => {
+//     if (err) {
+//       console.error('Error creating items_sold table:', err);
+//     } else {
+//       console.log('items_sold table created successfully');
+//     }
+//   }
+// );
+// // 
+
+app.post('/api/addToSale', (req, res) =>{
+console.log(req.body);
+
+}
+)//addToSale
+
+app.get('/api/saleItems',(req, res) =>{
+console.log(" fetching backend works " + req.body)
+})//saleItems
 
 app.post('/api/form', (req, res) => {
   const { name, email, phoneNumber, selectedDate, state } = req.body;
@@ -136,35 +173,35 @@ app.get('/api/customers', async (req, res) => {
 // Define a route to fetch customer data based on phone number
 app.get("/api/customerData", (req, res) => {
   const customerPhoneNumber = req.query.phoneNumber;
-  console.log("reached");
 
-  db.query(
-    "SELECT customers.name, customers.phonenumber, customers.email, COALESCE(MAX(sales.saleID), 0) AS currentSaleID FROM customers LEFT JOIN sales ON customers.phonenumber = sales.customerID WHERE customers.phonenumber = $1 GROUP BY customers.name, customers.phonenumber, customers.email",
-    [customerPhoneNumber],
-    (err, result) => {
-      if (err) {
-        console.error(err);
-        res.status(500).json({ error: "Internal server error" });
-      } else if (result.rows.length > 0) {
-        const row = result.rows[0];
-        const currentSaleID = row.currentSaleID;
-        console.log(currentSaleID);
+  const query = `
+    SELECT customers.name, customers.phonenumber, customers.email,
+      (SELECT COALESCE(MAX(saleid), 0) FROM sales WHERE customerID = customers.phonenumber) AS currentSaleID
+    FROM customers
+    WHERE customers.phonenumber = $1
+  `;
 
-        res.json({
-          name: row.name,
-          phoneNumber: row.phonenumber,
-          email: row.email,
-          currentSaleID: currentSaleID,
-        });
-      } else {
-        // Return an error if the customer is not found
-        res.status(404).json({ error: "Customer not found" });
-      }
+  db.query(query, [customerPhoneNumber], (err, result) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json({ error: "Internal server error" });
+    } else if (result.rows.length > 0) {
+      const row = result.rows[0];
+      const currentSaleID = row.currentsaleid; // Make sure to use lowercase "currentsaleid"
+    
+
+      res.json({
+        name: row.name,
+        phoneNumber: row.phonenumber,
+        email: row.email,
+        saleID: currentSaleID,
+      });
+    } else {
+      // Return an error if the customer is not found
+      res.status(404).json({ error: "Customer not found" });
     }
-  );
+  });
 });
-
-
 
 
 
