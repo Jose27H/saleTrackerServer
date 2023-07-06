@@ -18,104 +18,188 @@ const db = new Pool({
 
 // Set up your routes and middleware here
 
-// 
-// app.get('/', (req, res) => {
-//   // Example query using the 'db' object
-//   db.query(
-//     `CREATE TABLE customers (
-//       phonenumber VARCHAR(255) NOT NULL PRIMARY KEY,
-//       name VARCHAR(255),
-//       date_of_birth DATE,
-//       state VARCHAR(255)
-//     )`,
-//     (err, result) => {
-//       if (err) {
-//         console.error('Error creating table', err);
-//         res.status(500).send('Error creating table');
-//       } else {
-//         res.send('Table created successfully');
-//       }
-//     }
-//   );
-// });
-
-// const recreateSalesTableQuery = `
-//   DROP TABLE IF EXISTS sales;
-  
-//   CREATE TABLE sales (
-//     saleID SERIAL PRIMARY KEY,
-//     customerID TEXT NOT NULL,
-//     date DATE DEFAULT CURRENT_DATE,
-//     isClosed BOOLEAN DEFAULT FALSE,
-//     FOREIGN KEY (customerID) REFERENCES customers (phonenumber)
-//   );
-// `;
-
-// // Execute the query using db.query method
-// db.query(recreateSalesTableQuery)
-//   .then(() => {
-//     console.log('Sales table dropped and re-created successfully!');
-//   })
-//   .catch((error) => {
-//     console.error('Error dropping and re-creating sales table:', error);
-//   });
-
-// // Drop the items_sold table
-// db.query('DROP TABLE IF EXISTS items_sold', (err, result) => {
+// // // Drop the items_sold table
+// db.query('DROP TABLE IF EXISTS items_sold CASCADE', (err, result) => {
 //   if (err) {
 //     console.error('Error dropping items_sold table:', err);
 //   } else {
 //     console.log('items_sold table dropped successfully');
+//     // Proceed to drop other tables after items_sold table is dropped
+//     dropTables();
 //   }
 // });
 
-// // Create the items_sold table
-// db.query(
-//   `CREATE TABLE items_sold (
-//     Item_name VARCHAR(255) NOT NULL,
-//     saleid INTEGER REFERENCES sales (saleid),
-//     reorder_date DATE ,
-//     price DECIMAL(10, 2),
-//     hasCalled BOOLEAN DEFAULT FALSE
-//   )`,
-//   (err, result) => {
+// // Function to drop the sales and customers tables
+// const dropTables = () => {
+//   // Drop the sales table
+//   db.query('DROP TABLE IF EXISTS sales CASCADE', (err, result) => {
 //     if (err) {
-//       console.error('Error creating items_sold table:', err);
+//       console.error('Error dropping sales table:', err);
 //     } else {
-//       console.log('items_sold table created successfully');
+//       console.log('sales table dropped successfully');
+//       // Drop the customers table
+//       db.query('DROP TABLE IF EXISTS customers CASCADE', (err, result) => {
+//         if (err) {
+//           console.error('Error dropping customers table:', err);
+//         } else {
+//           console.log('customers table dropped successfully');
+//           // All tables dropped, proceed to create tables
+//           createTables();
+//         }
+//       });
 //     }
-//   }
-// );
-// // 
+//   });
+// };
 
-app.post('/api/addToSale', (req, res) =>{
-console.log(req.body);
+// // Function to create the tables
+// const createTables = () => {
+//   // Create customers table query
+//   const createCustomersTableQuery = `
+//     CREATE TABLE customers (
+//       phonenumber VARCHAR(255) NOT NULL PRIMARY KEY,
+//       name VARCHAR(255),
+//       date_of_birth DATE,
+//       state VARCHAR(255),
+//       email VARCHAR(255)
+//     );
+//   `;
 
-}
-)//addToSale
+//   // Create sales table query
+//   const createSalesTableQuery = `
+//     CREATE TABLE sales (
+//       saleID SERIAL PRIMARY KEY,
+//       customerID TEXT NOT NULL,
+//       date DATE DEFAULT CURRENT_DATE,
+//       isClosed BOOLEAN DEFAULT FALSE,
+//       FOREIGN KEY (customerID) REFERENCES customers (phonenumber) ON DELETE CASCADE
+//     );
+//   `;
+
+//   // Create items_sold table query
+//   const createItemsSoldTableQuery = `
+//     CREATE TABLE items_sold (
+//       soldID SERIAL PRIMARY KEY,
+//       Item_name VARCHAR(255) NOT NULL,
+//       saleid INTEGER REFERENCES sales (saleid) ON DELETE CASCADE,
+//       reorder_date DATE,
+//       price DECIMAL(10, 2),
+//       hasCalled BOOLEAN DEFAULT FALSE
+//     );
+//   `;
+
+//   // Execute the queries using db.query method
+//   db.query(createCustomersTableQuery)
+//     .then(() => {
+//       console.log('Customers table created successfully');
+//       return db.query(createSalesTableQuery);
+//     })
+//     .then(() => {
+//       console.log('Sales table created successfully');
+//       return db.query(createItemsSoldTableQuery);
+//     })
+//     .then(() => {
+//       console.log('Items Sold table created successfully');
+//     })
+//     .catch((error) => {
+//       console.error('Error creating tables:', error);
+//     });
+// };
+
+// // Drop tables first, then create new tables
+// dropTables();
+
+
+app.post('/api/addToSale', (req, res) => {
+  const { saleID, productName, daysUntilRefill, price } = req.body;
+
+  // Convert daysUntilRefill to an integer using parseInt
+  const days = parseInt(daysUntilRefill);
+
+    // Check if the conversion was successful
+    if (isNaN(days)) {
+      // Handle the error when the string cannot be converted to an integer
+      console.log(days)
+      res.status(400).json({ error: 'Invalid daysUntilRefill value' });
+      return;
+    }
+
+  const getRefillDate = (days) => {
+    const today = new Date();
+    const refillDate = new Date(today.setDate(today.getDate() + days));
+    return refillDate;
+  };
+
+  const refillDate = getRefillDate(days);
+  console.log(refillDate);
+
+
+  db.query(`INSERT INTO items_sold( item_name, saleid, reorder_date, price)
+  VALUES($1, $2, $3, $4)`,
+  [productName, saleID, refillDate, price ],
+  (err, result) => {
+    if(err){
+      res.status(400).json({error: "item not inserted"});
+    }
+  else{
+    res.status(200).json({ Success: "Item inserted correctly"})
+  }
+  }
+  )
+
+});
+
 
 app.get('/api/saleItems',(req, res) =>{
-console.log(" fetching backend works " + req.body)
+  const {saleID} = req.query;
+  db.query(
+    'SELECT * FROM items_sold WHERE saleid =$1',
+    [saleID], (err, result)=>{
+      if (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Failed to Retrieve Items' });
+      }
+      else{
+        const items = result.rows
+        console.log(items);
+        res.status(200).json({ items });
+        console.log(" fetching backend works " + saleID)
+      }
+    }
+  )
+
 })//saleItems
+
 
 app.post('/api/form', (req, res) => {
   const { name, email, phoneNumber, selectedDate, state } = req.body;
 
   db.query(
-    `INSERT INTO customers (phonenumber, name, date_of_birth, state , email)
+    `INSERT INTO customers (phonenumber, name, date_of_birth, state, email)
      VALUES ($1, $2, $3, $4, $5)`,
     [phoneNumber, name, selectedDate, state, email],
     (err, result) => {
       if (err) {
-         console.error(err);
-      
-        res.status(200).json({ error: 'Failed to submit form' });
+        console.error(err);
+        res.status(500).json({ error: 'Failed to submit form' });
       } else {
-        res.status(200).json({ success: "New Customer Added Succesfully" });
+        const insertQuery = `
+          INSERT INTO sales (customerID)
+          VALUES ($1)
+        `;
+        db.query(insertQuery, [phoneNumber], (error, results) => {
+          if (error) {
+            console.error("Failed to insert into sales table:", error);
+            res.status(500).json({ error: 'Failed to submit form' });
+          } else {
+            console.log("Successfully inserted into sales table");
+            res.status(200).json({ success: "New Customer Added Successfully" });
+          }
+        });
       }
     }
   );
 });
+
 
 // Endpoint for handling phone check
 app.post('/api/formnumber', (req, res) => {
@@ -222,7 +306,31 @@ app.post("/api/startSale", (req, res) => {
       res.sendStatus(200);
     }
   });
-})
+})//start a sale
+
+
+app.get("/api/viewSales", (req, res) => {
+  db.query(
+    "SELECT customers.name AS customerName, customers.phonenumber, sales.saleid, COUNT(items_sold.item_name) AS totalItems FROM customers " +
+    "JOIN sales ON customers.phonenumber = sales.customerid " +
+    "JOIN items_sold ON sales.saleid = items_sold.saleid " +
+    "GROUP BY sales.saleid, customers.name, customers.phonenumber " +
+    "ORDER BY sales.saleid DESC",
+    (err, result) => {
+      if (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to Retrieve Sale Items" });
+      } else {
+        const saleItems = result.rows;
+        console.log(saleItems);
+        res.status(200).json({ saleItems });
+        console.log("Fetching sale items from backend");
+      }
+    }
+  );
+});
+
+
 
 // Start the server
 app.listen(port, () => {
