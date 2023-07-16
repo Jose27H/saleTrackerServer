@@ -146,7 +146,7 @@ app.post('/api/addToSale', (req, res) => {
   }
   )
 
-});
+});///add to sale
 
 
 app.get('/api/saleItems',(req, res) =>{
@@ -308,12 +308,12 @@ app.post("/api/startSale", (req, res) => {
   });
 })//start a sale
 
-
 app.get("/api/viewSales", (req, res) => {
   db.query(
     "SELECT customers.name AS customerName, customers.phonenumber, sales.saleid, COUNT(items_sold.item_name) AS totalItems FROM customers " +
     "JOIN sales ON customers.phonenumber = sales.customerid " +
     "JOIN items_sold ON sales.saleid = items_sold.saleid " +
+    "WHERE sales.isclosed = false " + // Add the condition here
     "GROUP BY sales.saleid, customers.name, customers.phonenumber " +
     "ORDER BY sales.saleid DESC",
     (err, result) => {
@@ -322,13 +322,54 @@ app.get("/api/viewSales", (req, res) => {
         res.status(500).json({ error: "Failed to Retrieve Sale Items" });
       } else {
         const saleItems = result.rows;
-        console.log(saleItems);
+    
         res.status(200).json({ saleItems });
         console.log("Fetching sale items from backend");
       }
     }
   );
+});//
+
+
+// Import necessary modules and setup your express app
+
+// Function to update the isclosed column in the sales table
+const closeSale = async (saleID) => {
+  try {
+    const updateQuery = 'UPDATE sales SET isclosed = true WHERE saleid = $1';
+    const values = [saleID];
+
+    const result = await db.query(updateQuery, values);
+    console.log(`Sale ID ${saleID} marked as closed.`);
+    return result.rowCount; // The number of rows affected (should be 1)
+  } catch (error) {
+    console.error('Error updating sale status:', error);
+    return 0;
+  }
+};
+
+// Define the route to handle the closeSale request
+app.post('/api/closeSale/:saleID', async (req, res) => {
+  const saleID = req.params.saleID;
+  console.log('Sale ID to close:', saleID);
+
+  try {
+    const rowsAffected = await closeSale(saleID);
+    if (rowsAffected === 1) {
+      // Sale successfully closed
+      res.json({ message: `Sale with ID ${saleID} closed successfully!` });
+    } else {
+      // Sale not found or no rows updated
+      res.status(404).json({ error: 'Sale not found or already closed.' });
+    }
+  } catch (error) {
+    // Handle other errors
+    console.error('Error closing sale:', error);
+    res.status(500).json({ error: 'An error occurred while closing the sale.' });
+  }
 });
+
+
 
 
 
