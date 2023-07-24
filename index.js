@@ -2,6 +2,9 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const { Pool } = require('pg');
+const checkReorderItems = require('./reorderItemsChecker');
+const createCalledTrigger = require('./calledTrigger');
+
 
 const app = express();
 const port = 3000; // Set your desired port number
@@ -11,12 +14,13 @@ app.use(cors());
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
+
 // Create a new instance of the Pool
 const db = new Pool({
   connectionString: 'postgresql://postgres:OKW4XHsFBhiWQu4YsRpd@containers-us-west-100.railway.app:5975/railway',
 });
 
-// Set up your routes and middleware here
+
 
 // // // Drop the items_sold table
 // db.query('DROP TABLE IF EXISTS items_sold CASCADE', (err, result) => {
@@ -107,6 +111,7 @@ const db = new Pool({
 
 // // Drop tables first, then create new tables
 // dropTables();
+// createCalledTrigger(db);
 
 
 app.post('/api/addToSale', (req, res) => {
@@ -148,26 +153,30 @@ app.post('/api/addToSale', (req, res) => {
 
 });///add to sale
 
-
-app.get('/api/saleItems',(req, res) =>{
-  const {saleID} = req.query;
+app.get('/api/saleItems', (req, res) => {
+  const { saleID } = req.query;
   db.query(
-    'SELECT * FROM items_sold WHERE saleid =$1',
-    [saleID], (err, result)=>{
+    'SELECT soldid, item_name, saleid, reorder_date, price, hascalled FROM items_sold WHERE saleid = $1 ',
+    [saleID],
+    (err, result) => {
       if (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to Retrieve Items' });
-      }
-      else{
-        const items = result.rows
-        console.log(items);
-        res.status(200).json({ items });
-        console.log(" fetching backend works " + saleID)
+      } else {
+        const items = result.rows;
+        
+        const totalPrice = items.reduce((accumulator, item) => accumulator + parseFloat(item.price), 0);
+    
+        res.status(200).json({ items, totalPrice });
+     
       }
     }
-  )
+  );
+});
 
-})//saleItems
+
+
+
 
 
 app.post('/api/form', (req, res) => {
@@ -198,7 +207,7 @@ app.post('/api/form', (req, res) => {
       }
     }
   );
-});
+});//form
 
 
 // Endpoint for handling phone check
@@ -220,7 +229,7 @@ app.post('/api/formnumber', (req, res) => {
       }
     }
   });
-});
+});//form for just the number
 
 // Endpoint to fetch customers with search term and pagination
 app.get('/api/customers', async (req, res) => {
@@ -331,22 +340,60 @@ app.get("/api/viewSales", (req, res) => {
 });//
 
 
+app.get("/api/viewClosedSales", (req, res) => {
+  db.query(
+    "SELECT customers.name AS customerName, customers.phonenumber, sales.saleid, COUNT(items_sold.item_name) AS totalItems FROM customers " +
+    "JOIN sales ON customers.phonenumber = sales.customerid " +
+    "JOIN items_sold ON sales.saleid = items_sold.saleid " +
+    "WHERE sales.isclosed = true " + // Add the condition here
+    "GROUP BY sales.saleid, customers.name, customers.phonenumber " +
+    "ORDER BY sales.saleid DESC",
+    (err, result) => {
+      if (err) {
+        console.error(err);
+        res.status(500).json({ error: "Failed to Retrieve Sale Items" });
+      } else {
+        const saleItems = result.rows;
+    
+        res.status(200).json({ saleItems });
+        console.log("Fetching sale items from backend");
+      }
+    }
+  );
+});//ViewClosedSales
+
+
 // Import necessary modules and setup your express app
 
 // Function to update the isclosed column in the sales table
 const closeSale = async (saleID) => {
   try {
-    const updateQuery = 'UPDATE sales SET isclosed = true WHERE saleid = $1';
+    const updateSalesQuery = 'UPDATE sales SET isclosed = true WHERE saleid = $1';
+    const updateItemsQuery = 'UPDATE items_sold SET hascalled = true WHERE saleid = $1';
     const values = [saleID];
 
-    const result = await db.query(updateQuery, values);
-    console.log(`Sale ID ${saleID} marked as closed.`);
-    return result.rowCount; // The number of rows affected (should be 1)
+    // Update "sales" table to set "isclosed" to true for the specified saleID
+    const updateSalesResult = await db.query(updateSalesQuery, values);
+    console.log(`Sale ID ${saleID} marked as closed in sales table.`);
+
+    // Update "items_sold" table to set "hascalled" to true for all items with the specified saleID
+    const updateItemsResult = await db.query(updateItemsQuery, values);
+    console.log(`"hascalled" field set to true for all items in items_sold with saleID ${saleID}.`);
+
+    // Return the number of rows affected in both queries (should be 1 for each)
+    return {
+      salesRowsAffected: updateSalesResult.rowCount,
+      itemsRowsAffected: updateItemsResult.rowCount
+    };
   } catch (error) {
     console.error('Error updating sale status:', error);
-    return 0;
+    return {
+      salesRowsAffected: 0,
+      itemsRowsAffected: 0
+    };
   }
-};
+};//close a sale
+
 
 // Define the route to handle the closeSale request
 app.post('/api/closeSale/:saleID', async (req, res) => {
@@ -367,7 +414,17 @@ app.post('/api/closeSale/:saleID', async (req, res) => {
     console.error('Error closing sale:', error);
     res.status(500).json({ error: 'An error occurred while closing the sale.' });
   }
-});
+});//closing the sales
+
+
+
+
+
+// Schedule the function to run once a day
+const interval = 60*1000; // 24 hours
+setInterval(() => checkReorderItems(db), interval);
+
+
 
 
 
