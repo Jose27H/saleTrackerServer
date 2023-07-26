@@ -4,6 +4,7 @@ const bodyParser = require('body-parser');
 const { Pool } = require('pg');
 const checkReorderItems = require('./reorderItemsChecker');
 const createCalledTrigger = require('./calledTrigger');
+const grabCxsales = require('./viewCxSales');
 
 
 const app = express();
@@ -415,6 +416,19 @@ app.post('/api/closeSale/:saleID', async (req, res) => {
     res.status(500).json({ error: 'An error occurred while closing the sale.' });
   }
 });//closing the sales
+
+app.get("/api/viewCxSales", async (req, res) => {
+  const { phoneNumber } = req.query;
+
+  try {
+    const saleItems = await grabCxsales(phoneNumber, db);
+    res.status(200).json({ saleItems });
+    console.log("Fetching sale items from backend");
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to Retrieve Sale Items" });
+  }
+});//to get a cx specific sales
 
 
 
