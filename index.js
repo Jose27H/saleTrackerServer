@@ -23,7 +23,7 @@ const db = new Pool({
 
 
 
-// // // Drop the items_sold table
+// // Drop the items_sold table
 // db.query('DROP TABLE IF EXISTS items_sold CASCADE', (err, result) => {
 //   if (err) {
 //     console.error('Error dropping items_sold table:', err);
@@ -71,14 +71,16 @@ const db = new Pool({
 
 //   // Create sales table query
 //   const createSalesTableQuery = `
-//     CREATE TABLE sales (
-//       saleID SERIAL PRIMARY KEY,
-//       customerID TEXT NOT NULL,
-//       date DATE DEFAULT CURRENT_DATE,
-//       isClosed BOOLEAN DEFAULT FALSE,
-//       FOREIGN KEY (customerID) REFERENCES customers (phonenumber) ON DELETE CASCADE
-//     );
-//   `;
+//   CREATE TABLE sales (
+//     saleid SERIAL PRIMARY KEY,
+//     customerid TEXT NOT NULL,
+//     date DATE DEFAULT CURRENT_DATE,
+//     isclosed BOOLEAN DEFAULT FALSE,
+//     notes TEXT, -- New column for notes
+//     FOREIGN KEY (customerID) REFERENCES customers (phonenumber) ON DELETE CASCADE
+//   );
+// `;
+
 
 //   // Create items_sold table query
 //   const createItemsSoldTableQuery = `
@@ -110,7 +112,7 @@ const db = new Pool({
 //     });
 // };
 
-// // Drop tables first, then create new tables
+// Drop tables first, then create new tables
 // dropTables();
 // createCalledTrigger(db);
 
@@ -269,11 +271,13 @@ app.get("/api/customerData", (req, res) => {
   const customerPhoneNumber = req.query.phoneNumber;
 
   const query = `
-    SELECT customers.name, customers.phonenumber, customers.email,
-      (SELECT COALESCE(MAX(saleid), 0) FROM sales WHERE customerID = customers.phonenumber) AS currentSaleID
-    FROM customers
-    WHERE customers.phonenumber = $1
-  `;
+  SELECT customers.name, customers.phonenumber, customers.email,
+    (SELECT COALESCE(MAX(saleid), 0) FROM sales WHERE customerid = customers.phonenumber) AS currentSaleID,
+    (SELECT notes FROM sales WHERE customerid = customers.phonenumber ORDER BY saleid DESC LIMIT 1) AS notes
+  FROM customers
+  WHERE customers.phonenumber = $1
+`;
+
 
   db.query(query, [customerPhoneNumber], (err, result) => {
     if (err) {
@@ -282,6 +286,7 @@ app.get("/api/customerData", (req, res) => {
     } else if (result.rows.length > 0) {
       const row = result.rows[0];
       const currentSaleID = row.currentsaleid; // Make sure to use lowercase "currentsaleid"
+      console.log(row.notes);
     
 
       res.json({
@@ -289,12 +294,37 @@ app.get("/api/customerData", (req, res) => {
         phoneNumber: row.phonenumber,
         email: row.email,
         saleID: currentSaleID,
+        notes: row.notes,
       });
     } else {
       // Return an error if the customer is not found
       res.status(404).json({ error: "Customer not found" });
     }
   });
+});
+
+
+
+app.post("/api/updateNotes", (req, res) => {
+  const { saleID, notes } = req.body;
+
+  // Update the notes in the database for the given saleID
+  const updateNotesQuery = `
+    UPDATE sales
+    SET notes = $1
+    WHERE saleid = $2
+  `;
+
+  db
+    .query(updateNotesQuery, [notes, saleID])
+    .then(() => {
+      console.log(saleID+ " " + notes)
+      res.json({ success: true, message: "Notes updated successfully." });
+    })
+    .catch((error) => {
+      console.error("Error updating notes:", error);
+      res.status(500).json({ success: false, message: "Failed to update notes." });
+    });
 });
 
 
