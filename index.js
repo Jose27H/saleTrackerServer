@@ -112,7 +112,7 @@ const db = new Pool({
 //     });
 // };
 
-// Drop tables first, then create new tables
+// // Drop tables first, then create new tables
 // dropTables();
 // createCalledTrigger(db);
 
@@ -266,7 +266,7 @@ app.get('/api/customers', async (req, res) => {
     res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-// Define a route to fetch customer data based on phone number
+
 app.get("/api/customerData", (req, res) => {
   const customerPhoneNumber = req.query.phoneNumber;
 
@@ -275,7 +275,7 @@ app.get("/api/customerData", (req, res) => {
     (SELECT COALESCE(MAX(saleid), 0) FROM sales WHERE customerid = customers.phonenumber) AS currentSaleID,
     (SELECT notes FROM sales WHERE customerid = customers.phonenumber ORDER BY saleid DESC LIMIT 1) AS notes
   FROM customers
-  WHERE customers.phonenumber = $1
+  WHERE customers.phonenumber = $1;
 `;
 
 
@@ -286,7 +286,7 @@ app.get("/api/customerData", (req, res) => {
     } else if (result.rows.length > 0) {
       const row = result.rows[0];
       const currentSaleID = row.currentsaleid; // Make sure to use lowercase "currentsaleid"
-      console.log(row.notes);
+    
     
 
       res.json({
@@ -302,8 +302,6 @@ app.get("/api/customerData", (req, res) => {
     }
   });
 });
-
-
 
 app.post("/api/updateNotes", (req, res) => {
   const { saleID, notes } = req.body;
@@ -453,7 +451,7 @@ app.get("/api/viewCxSales", async (req, res) => {
   try {
     const saleItems = await grabCxsales(phoneNumber, db);
     res.status(200).json({ saleItems });
-    console.log("Fetching sale items from backend");
+    console.log("Fetching sale items from backend" + " " + saleItems);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Failed to Retrieve Sale Items" });

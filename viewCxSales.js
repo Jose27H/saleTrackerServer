@@ -10,6 +10,7 @@ async function grabCxsales(number, db) {
   
     try {
       const { rows } = await db.query(query, [number]);
+      console.log(number);
       return rows;
     } catch (error) {
       console.error("Error retrieving sale items:", error);
