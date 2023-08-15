@@ -8,10 +8,13 @@ const grabCxsales = require('./viewCxSales');
 
 
 const app = express();
+app.use(cors({
+  origin: true
+}));
 const port = 3000; // Set your desired port number
 
 // Enable CORS middleware
-app.use(cors());
+
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
