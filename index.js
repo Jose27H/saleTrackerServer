@@ -273,7 +273,8 @@ app.get("/api/customerData", (req, res) => {
   const query = `
   SELECT customers.name, customers.phonenumber, customers.email,
     (SELECT COALESCE(MAX(saleid), 0) FROM sales WHERE customerid = customers.phonenumber) AS currentSaleID,
-    (SELECT notes FROM sales WHERE customerid = customers.phonenumber ORDER BY saleid DESC LIMIT 1) AS notes
+    (SELECT notes FROM sales WHERE customerid = customers.phonenumber ORDER BY saleid DESC LIMIT 1) AS notes,
+    (SELECT date FROM sales WHERE customerid = customers.phonenumber ORDER BY saleid DESC LIMIT 1) AS date
   FROM customers
   WHERE customers.phonenumber = $1
 `;
@@ -286,7 +287,8 @@ app.get("/api/customerData", (req, res) => {
     } else if (result.rows.length > 0) {
       const row = result.rows[0];
       const currentSaleID = row.currentsaleid; // Make sure to use lowercase "currentsaleid"
-      console.log(row.notes);
+      console.log(row.date);
+     
     
 
       res.json({
@@ -295,6 +297,7 @@ app.get("/api/customerData", (req, res) => {
         email: row.email,
         saleID: currentSaleID,
         notes: row.notes,
+        date: row.date,
       });
     } else {
       // Return an error if the customer is not found
@@ -318,7 +321,7 @@ app.post("/api/updateNotes", (req, res) => {
   db
     .query(updateNotesQuery, [notes, saleID])
     .then(() => {
-      console.log(saleID+ " " + notes)
+    
       res.json({ success: true, message: "Notes updated successfully." });
     })
     .catch((error) => {
