@@ -8,10 +8,15 @@ const grabCxsales = require('./viewCxSales');
 
 
 const app = express();
-app.use(cors({
-  origin: true
-}));
-const port = 3000; // Set your desired port number
+const port = process.env.PORT || 5000;
+
+app.use(express.json());
+app.use(cors());
+
+app.get("/", (req, res) => {
+  res.send('hw');
+  console.log('hscreen')
+});
 
 // Enable CORS middleware
 
