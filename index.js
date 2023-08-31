@@ -5,6 +5,7 @@ const { Pool } = require('pg');
 const checkReorderItems = require('./reorderItemsChecker');
 const createCalledTrigger = require('./calledTrigger');
 const grabCxsales = require('./viewCxSales');
+const reorderTable = require('./reorderTable');
 
 
 const app = express();
@@ -467,6 +468,20 @@ app.get("/api/viewCxSales", async (req, res) => {
     res.status(500).json({ error: "Failed to Retrieve Sale Items" });
   }
 });//to get a cx specific sales
+
+
+app.get("/api/viewReorders", async (req, res) => {
+ 
+
+  try {
+    const saleReorderItems = await reorderTable( db);
+    res.status(200).json({ saleReorderItems });
+    console.log("Fetching list of reorder items");
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Failed to Retrieve Sale Items" });
+  }
+});//for the itemized list of products to reorder
 
 
 
