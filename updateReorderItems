@@ -1,0 +1,19 @@
+
+
+ function updateItemInReorderTable(db, itemToUpdate, saleIdToUpdate) {
+    try {
+      const updateQuery = `
+        UPDATE items_sold
+        SET hasreordered = true
+        WHERE item_name = $1
+          AND saleid = $2;
+      `;
+  
+      const { rowCount } =  db.query(updateQuery, [itemToUpdate, saleIdToUpdate]);
+      console.log('Rows updated:', itemToUpdate, saleIdToUpdate);
+    } catch (error) {
+      console.error('Error executing SQL query:', error);
+    }
+  };
+  
+  module.exports = updateItemInReorderTable;
