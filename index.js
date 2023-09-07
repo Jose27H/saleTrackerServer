@@ -6,6 +6,8 @@ const checkReorderItems = require('./reorderItemsChecker');
 const createCalledTrigger = require('./calledTrigger');
 const grabCxsales = require('./viewCxSales');
 const reorderTable = require('./reorderTable');
+const updateItemInReorderTable = require('./updateReorderItems');
+// const updateItemInReorderTable = require('./updateReorderItems');
 
 
 const app = express();
@@ -484,6 +486,17 @@ app.get("/api/viewReorders", async (req, res) => {
 });//for the itemized list of products to reorder
 
 
+app.get("/api/handleReorder", (req, res) => {
+try{
+console.log(req.query.soldItem + "  " + req.query.saleID);
+updateItemInReorderTable(db,req.query.soldItem,req.query.saleID);
+res.status(200).json({message: "Thanks for Reordering!"})
+}catch(error){
+  console.error(error);
+  res.status(500).json({ error: "Failed to Retrieve Sale Items (handleReorder)" });
+}
+}
+)
 
 
 
