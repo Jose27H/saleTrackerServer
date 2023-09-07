@@ -14,3 +14,22 @@ async function reorderTable(db){
     }
 }
 module.exports = reorderTable;
+
+ async function updateItemInTable(db, itemToUpdate, saleIdToUpdate) {
+    try {
+      const updateQuery = `
+        UPDATE items_sold
+        SET hasreordered = true
+        WHERE item_name = $1
+          AND saleid = $2;
+      `;
+  
+      const { rowCount } = await db.query(updateQuery, [itemToUpdate, saleIdToUpdate]);
+      console.log('Rows updated:', rowCount);
+    } catch (error) {
+      console.error('Error executing SQL query:', error);
+    }
+  };
+  
+  module.exports = updateItemInTable;
+  
