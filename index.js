@@ -29,7 +29,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Create a new instance of the Pool
 const db = new Pool({
-  connectionString: 'postgresql://postgres:CLzxvOjSBXIqtmSRDoZGzWMsQBecEbNx@postgres-o11w.railway.internal:5432/railway',
+  connectionString: 'postgresql://postgres:CLzxvOjSBXIqtmSRDoZGzWMsQBecEbNx@junction.proxy.rlwy.net:26196/railway',
 });
 
 
