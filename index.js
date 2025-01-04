@@ -29,7 +29,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Create a new instance of the Pool
 const db = new Pool({
-  connectionString: 'postgresql://postgres:OKW4XHsFBhiWQu4YsRpd@containers-us-west-100.railway.app:5975/railway',
+  connectionString: 'postgresql://postgres:CLzxvOjSBXIqtmSRDoZGzWMsQBecEbNx@postgres-o11w.railway.internal:5432/railway',
 });
 
 
@@ -67,65 +67,65 @@ const db = new Pool({
 //   });
 // };
 
-// // Function to create the tables
-// const createTables = () => {
-//   // Create customers table query
-//   const createCustomersTableQuery = `
-//     CREATE TABLE customers (
-//       phonenumber VARCHAR(255) NOT NULL PRIMARY KEY,
-//       name VARCHAR(255),
-//       date_of_birth DATE,
-//       state VARCHAR(255),
-//       email VARCHAR(255)
-//     );
-//   `;
+// Function to create the tables
+const createTables = () => {
+  // Create customers table query
+  const createCustomersTableQuery = `
+    CREATE TABLE customers (
+      phonenumber VARCHAR(255) NOT NULL PRIMARY KEY,
+      name VARCHAR(255),
+      date_of_birth DATE,
+      state VARCHAR(255),
+      email VARCHAR(255)
+    );
+  `;
 
-//   // Create sales table query
-//   const createSalesTableQuery = `
-//   CREATE TABLE sales (
-//     saleid SERIAL PRIMARY KEY,
-//     customerid TEXT NOT NULL,
-//     date DATE DEFAULT CURRENT_DATE,
-//     isclosed BOOLEAN DEFAULT FALSE,
-//     notes TEXT, -- New column for notes
-//     FOREIGN KEY (customerID) REFERENCES customers (phonenumber) ON DELETE CASCADE
-//   );
-// `;
+  // Create sales table query
+  const createSalesTableQuery = `
+  CREATE TABLE sales (
+    saleid SERIAL PRIMARY KEY,
+    customerid TEXT NOT NULL,
+    date DATE DEFAULT CURRENT_DATE,
+    isclosed BOOLEAN DEFAULT FALSE,
+    notes TEXT, -- New column for notes
+    FOREIGN KEY (customerID) REFERENCES customers (phonenumber) ON DELETE CASCADE
+  );
+`;
 
 
-//   // Create items_sold table query
-//   const createItemsSoldTableQuery = `
-//     CREATE TABLE items_sold (
-//       soldID SERIAL PRIMARY KEY,
-//       Item_name VARCHAR(255) NOT NULL,
-//       saleid INTEGER REFERENCES sales (saleid) ON DELETE CASCADE,
-//       reorder_date DATE,
-//       price DECIMAL(10, 2),
-//       hasCalled BOOLEAN DEFAULT FALSE
-//     );
-//   `;
+  // Create items_sold table query
+  const createItemsSoldTableQuery = `
+    CREATE TABLE items_sold (
+      soldID SERIAL PRIMARY KEY,
+      Item_name VARCHAR(255) NOT NULL,
+      saleid INTEGER REFERENCES sales (saleid) ON DELETE CASCADE,
+      reorder_date DATE,
+      price DECIMAL(10, 2),
+      hasCalled BOOLEAN DEFAULT FALSE
+    );
+  `;
 
-//   // Execute the queries using db.query method
-//   db.query(createCustomersTableQuery)
-//     .then(() => {
-//       console.log('Customers table created successfully');
-//       return db.query(createSalesTableQuery);
-//     })
-//     .then(() => {
-//       console.log('Sales table created successfully');
-//       return db.query(createItemsSoldTableQuery);
-//     })
-//     .then(() => {
-//       console.log('Items Sold table created successfully');
-//     })
-//     .catch((error) => {
-//       console.error('Error creating tables:', error);
-//     });
-// };
+  // Execute the queries using db.query method
+  db.query(createCustomersTableQuery)
+    .then(() => {
+      console.log('Customers table created successfully');
+      return db.query(createSalesTableQuery);
+    })
+    .then(() => {
+      console.log('Sales table created successfully');
+      return db.query(createItemsSoldTableQuery);
+    })
+    .then(() => {
+      console.log('Items Sold table created successfully');
+    })
+    .catch((error) => {
+      console.error('Error creating tables:', error);
+    });
+};
 
 // // Drop tables first, then create new tables
 // dropTables();
-// createCalledTrigger(db);
+createCalledTrigger(db);
 
 
 app.post('/api/addToSale', (req, res) => {
