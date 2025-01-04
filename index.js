@@ -125,6 +125,7 @@ const createTables = () => {
 
 // // Drop tables first, then create new tables
 // dropTables();
+createTables();
 createCalledTrigger(db);
 
 
